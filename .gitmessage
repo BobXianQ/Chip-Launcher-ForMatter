@@ -1,0 +1,74 @@
+# ============================================================
+# Chip-Launcher-ForMatter — Git Commit Template
+# ============================================================
+# Lines starting with '#' are comments and will be stripped.
+# Write your commit message below.
+# ============================================================
+
+# <type>(<scope>): <subject>
+# |<----  72 chars max  ---->|
+# 
+# <body>
+# |<---  wrap at 72 chars  --->|
+#
+# <footer>
+# ============================================================
+# Type (required):
+#   feat      — New feature
+#   fix       — Bug fix
+#   docs      — Documentation only
+#   style     — Formatting, whitespace (no code change)
+#   refactor  — Code refactor (no feature, no fix)
+#   perf      — Performance improvement
+#   test      — Tests
+#   chore     — Build, config, deps, tooling
+#   ci        — CI/CD
+#   revert    — Revert a previous commit
+# ============================================================
+# Scope (optional, recommended):
+#   script    — matter_start.sh
+#   docs      — README / documentation
+#   config    — Configuration / env
+#   thread    — Thread network logic
+#   wifi      — WiFi commissioning logic
+#   persist   — Data persistence
+#   ci        — CI / workflows
+# ============================================================
+# Subject rules:
+#   - Use imperative, present tense: "add" not "added"
+#   - No period at the end
+#   - Capitalize first letter
+#   - Max 72 characters
+# ============================================================
+# Body (optional):
+#   - Explain WHAT and WHY, not HOW
+#   - Wrap at 72 characters
+#   - Separate from subject by a blank line
+# ============================================================
+# 提交类型(必填):
+#   feat      — 新功能
+#   fix       — 缺陷修复
+#   docs      — 文档更新
+#   style     — 代码格式(不影响逻辑)
+#   refactor  — 重构(无功能变更)
+#   perf      — 性能优化
+#   test      — 测试
+#   chore     — 构建/配置/依赖/工具
+#   ci        — CI/CD
+#   revert    — 回滚
+# ============================================================
+# 主题规则:
+#   - 使用祈使语气、现在时态
+#   - 末尾不加句号
+#   - 首字母大写
+#   - 最长 72 字符
+# ============================================================
+# Examples:
+#   feat(script): add auto-generated Node ID with dedup check
+#   fix(thread): handle OTBR restart dataset recovery
+#   docs(readme): add bilingual README with architecture diagrams
+#   feat(persist): implement per-node fabric storage isolation
+#   fix(wifi): validate SSID password before chip-tool invocation
+# ============================================================
+
+# Write your commit message below this line:
