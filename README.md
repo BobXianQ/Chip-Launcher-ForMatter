@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v4.05.382-2563EB?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/version-v4.05.630-2563EB?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Raspberry%20Pi-important?style=for-the-badge" alt="Platform">
   <img src="https://img.shields.io/badge/Matter-1.4-6366F1?style=for-the-badge" alt="Matter">
@@ -42,7 +42,7 @@
 ```mermaid
 flowchart TB
     subgraph Input["输入层"]
-        A[Matter 设备<br/>PIN + Discriminator]
+        A[Matter 设备<br/>Payload / PIN + Discriminator]
     end
 
     subgraph Core["Chip-Launcher 核心"]
@@ -94,16 +94,25 @@ flowchart TB
 ### 基本用法
 
 ```bash
+sudo ./matter_start.sh <payload> [nodeid] <protocol> [options]
+
+# Legacy 模式 —— 手动指定 PIN 和 Discriminator
 sudo ./matter_start.sh <pin_code> <discriminator> [nodeid] <protocol> [options]
 ```
 
 ### 30 秒上手
 
 ```bash
-# Thread 配网（Node ID 自动生成，推荐）
+# Payload 模式 — 直接传配网码，自动解析（推荐）
+sudo ./matter_start.sh MT:-IEA1-C714BL2L3OZ00 thread
+
+# Thread 配网（手动指定 PIN + Discriminator，Node ID 自动生成）
 sudo ./matter_start.sh 12345678 3840 thread
 
-# WiFi 配网
+# WiFi 配网（Payload 模式）
+sudo ./matter_start.sh MT:-IEA1-C714BL2L3OZ00 wifi --ssid MyHomeWiFi --password MyPassword
+
+# WiFi 配网（Legacy 模式）
 sudo ./matter_start.sh 12345678 3840 wifi --ssid MyHomeWiFi --password MyPassword
 
 # 脚本自动化模式 — 自动确认所有交互
@@ -118,9 +127,12 @@ sudo ./matter_start.sh 12345678 3840 thread -y
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `pin_code` | `uint32` | Matter 设备 PIN 码，印于设备机身或由固件生成 |
-| `discriminator` | `uint16` | 蓝牙发现鉴别码，范围 0–4095 |
+| `payload` | `string` | **（推荐）** Matter 配网码，如 `MT:-IEA1-C714BL2L3OZ00`。脚本自动调用 `chip-tool payload parse-setup-payload` 解析出 PIN Code 和 Discriminator |
+| `pin_code` | `uint32` | **（Legacy）** Matter 设备 PIN 码，印于设备机身或由固件生成 |
+| `discriminator` | `uint16` | **（Legacy）** 蓝牙发现鉴别码，范围 0–4095 |
 | `protocol` | `enum` | 入网协议：`wifi` 或 `thread` |
+
+> 💡 **推荐使用 Payload 模式**：只需传入设备上的配网码，脚本自动解析 PIN 和 Discriminator，省去手动输入，避免填错。
 
 ### 可选参数
 
@@ -175,19 +187,22 @@ flowchart LR
 ### Thread 配网场景示例
 
 ```bash
-# 场景 1：首次使用 — 自动创建新网络
+# 场景 1：首次使用（Payload） — 自动创建新网络
+sudo ./matter_start.sh MT:-IEA1-C714BL2L3OZ00 thread
+
+# 场景 2：首次使用（Legacy） — 自动创建新网络
 sudo ./matter_start.sh 12345678 3840 thread
 
-# 场景 2：设备断电重启 — 自动从磁盘恢复网络
-sudo ./matter_start.sh 87654321 3841 thread
+# 场景 3：设备断电重启 — 自动从磁盘恢复网络
+sudo ./matter_start.sh MT:-IEA1-C714BL2L3OZ00 thread
 
-# 场景 3：批量配网 — 跳过交互
+# 场景 4：批量配网 — 跳过交互
 sudo ./matter_start.sh 12345678 3840 thread -y
 
-# 场景 4：更换网络拓扑 — 强制重建 + 指定信道
+# 场景 5：更换网络拓扑 — 强制重建 + 指定信道
 sudo ./matter_start.sh 12345678 3840 thread --force-create-threadnetwork --thread-set-channel 25
 
-# 场景 5：加入已有网络 — 指定 Dataset
+# 场景 6：加入已有网络 — 指定 Dataset
 sudo ./matter_start.sh 12345678 3840 thread --use-thread-network "0e080000000000010000..."
 ```
 
@@ -226,8 +241,8 @@ sequenceDiagram
     participant D as 📁 持久化存储
     participant M as 🏠 Matter 设备
 
-    U->>S: sudo ./matter_start.sh PIN DISC thread
-    S->>S: 解析参数，生成 Node ID
+    U->>S: sudo ./matter_start.sh MT:-IEA1-C714BL2L3OZ00 thread
+    S->>S: 解析 Payload → PIN + Discriminator，生成 Node ID
     S->>OT: 检查 cpcd 运行状态
     S->>OT: 查询 / 恢复 / 创建 Thread 网络
     S->>D: 持久化 Dataset 到磁盘

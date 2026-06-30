@@ -8,18 +8,25 @@ THREAD_DATASET_FILE="$MATTER_DATA_DIR/thread_dataset.txt"
 THREAD_NETWORK_NAME_FILE="$MATTER_DATA_DIR/thread_network_name.txt"
 CHIP_STORAGE_DIR_BASE="$MATTER_DATA_DIR/chip-storage"
 CHIP_STORAGE_DIR="$CHIP_STORAGE_DIR_BASE"
-SCRIPT_VERSION="v4.05.382"
+SCRIPT_VERSION="v4.05.630"
 
 # 显示帮助信息
 show_help() {
     cat << EOF
-Usage: $0 <pin_code> <discriminator> [nodeid] <protocol> [options]
+Usage: $0 <payload> [nodeid] <protocol> [options]
+       $0 <pin_code> <discriminator> [nodeid] <protocol> [options]
 
-Arguments:
-  pin_code        Matter PIN code (required)
-  discriminator   Matter discriminator (required)
-  nodeid          Matter node ID (optional, auto-generated if omitted)
-  protocol        Network protocol: 'wifi' or 'thread' (required)
+Arguments (Payload mode - recommended):
+  payload            Matter setup payload (e.g. MT:-IEA1-C714BL2L3OZ00)
+                     Script will auto-parse via chip-tool to extract pin_code & discriminator
+
+Arguments (Legacy mode):
+  pin_code           Matter PIN code
+  discriminator      Matter discriminator
+
+Common arguments:
+  nodeid             Matter node ID (optional, auto-generated if omitted)
+  protocol           Network protocol: 'wifi' or 'thread' (required)
 
 Options for wifi protocol:
   --ssid <ssid>               WiFi SSID (required for wifi)
@@ -35,6 +42,13 @@ Common options:
   --help, -h                  Show this help message
 
 Examples:
+  # Payload mode (auto-parse discriminator & passcode)
+  $0 MT:-IEA1-C714BL2L3OZ00 thread
+  $0 MT:-IEA1-C714BL2L3OZ00 1 thread
+  $0 MT:-IEA1-C714BL2L3OZ00 thread --force-create-threadnetwork
+  $0 MT:-IEA1-C714BL2L3OZ00 wifi --ssid MyWiFi --password MyPassword
+
+  # Legacy mode (manual discriminator & passcode)
   # Auto-generate node ID
   $0 12345678 3840 thread
   
@@ -114,26 +128,69 @@ THREAD_CHANNEL=""
 CLEAR_CACHE=false
 AUTO_YES=false
 
-# 解析位置参数（至少 pin_code, discriminator, protocol 3个必需参数）
-if [ $# -lt 3 ]; then
-    echo "Error: Missing required arguments"
+#===== PAYLOAD / ARGUMENT PARSING =====
+
+# Detect if first argument is a Matter setup payload (contains ':')
+if [[ "$1" == *":"* ]]; then
+    PAYLOAD="$1"
+    shift 1
+
+    echo "🔍 Detected Matter setup payload: $PAYLOAD"
+    echo "   Parsing with chip-tool..."
+
+    # Find chip-tool for payload parsing
+    CHIP_TOOL_FOR_PARSE="/home/ubuntu/apps/chip-tool"
+    if [ ! -f "$CHIP_TOOL_FOR_PARSE" ]; then
+        CHIP_TOOL_FOR_PARSE=$(find /home/ubuntu -name "chip-tool" -type f 2>/dev/null | head -1)
+    fi
+    if [ -z "$CHIP_TOOL_FOR_PARSE" ] || [ ! -f "$CHIP_TOOL_FOR_PARSE" ]; then
+        echo "✗ Error: chip-tool not found! Cannot parse payload."
+        exit 1
+    fi
+
+    PARSE_OUTPUT=$(sudo "$CHIP_TOOL_FOR_PARSE" payload parse-setup-payload "$PAYLOAD" 2>&1)
+
+    DISCRIMINATOR=$(echo "$PARSE_OUTPUT" | grep -oP 'Long discriminator:\s+\K\d+')
+    PIN_CODE=$(echo "$PARSE_OUTPUT" | grep -oP 'Passcode:\s+\K\d+')
+
+    if [ -z "$DISCRIMINATOR" ] || [ -z "$PIN_CODE" ]; then
+        echo "✗ Error: Failed to parse setup payload!"
+        echo ""
+        echo "   chip-tool output:"
+        echo "$PARSE_OUTPUT"
+        exit 1
+    fi
+
+    echo "   ✓ Discriminator: $DISCRIMINATOR"
+    echo "   ✓ Passcode:      $PIN_CODE"
+    echo ""
+else
+    # Legacy mode: first two positional args are pin_code and discriminator
+    if [ $# -lt 3 ]; then
+        echo "Error: Missing required arguments"
+        show_help
+    fi
+    PIN_CODE=$1
+    DISCRIMINATOR=$2
+    shift 2
+fi
+
+# Parse remaining positional arguments: [nodeid] protocol
+if [ $# -lt 1 ]; then
+    echo "Error: Missing protocol argument"
     show_help
 fi
 
-PIN_CODE=$1
-DISCRIMINATOR=$2
-
-# 判断第3个参数是否是数字（nodeid）还是协议名
-if [[ "$3" =~ ^[0-9]+$ ]]; then
-    # 第3个参数是数字 → 当做 nodeid
-    NODEID=$3
-    PROTOCOL=$4
-    shift 4
+if [[ "$1" =~ ^[0-9]+$ ]]; then
+    # First remaining arg is numeric → nodeid
+    NODEID=$1
+    PROTOCOL=$2
+    shift 2
 else
-    # 第3个参数不是数字 → 当做 protocol，nodeid 待自动生成
+    # First remaining arg is protocol name
     NODEID=""
-    PROTOCOL=$3
-    shift 3
+    PROTOCOL=$1
+    shift 1
 fi
 
 # 解析可选参数

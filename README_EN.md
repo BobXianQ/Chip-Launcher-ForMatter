@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v4.05.382-2563EB?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/version-v4.05.630-2563EB?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Raspberry%20Pi-important?style=for-the-badge" alt="Platform">
   <img src="https://img.shields.io/badge/Matter-1.4-6366F1?style=for-the-badge" alt="Matter">
@@ -42,7 +42,7 @@
 ```mermaid
 flowchart TB
     subgraph Input["Input Layer"]
-        A[Matter Device<br/>PIN + Discriminator]
+        A[Matter Device<br/>Payload / PIN + Discriminator]
     end
 
     subgraph Core["Chip-Launcher Core"]
@@ -100,10 +100,22 @@ sudo ./matter_start.sh <pin_code> <discriminator> [nodeid] <protocol> [options]
 ### Get Started in 30 Seconds
 
 ```bash
-# Thread commissioning (auto-generated Node ID — recommended)
+# Payload mode (recommended) — pass the setup payload, auto-parse PIN & Discriminator
+sudo ./matter_start.sh <payload> [nodeid] <protocol> [options]
+
+# Legacy mode — specify PIN and Discriminator manually
+sudo ./matter_start.sh <pin_code> <discriminator> [nodeid] <protocol> [options]
+
+# Payload mode — pass the setup payload directly, auto-parse (recommended)
+sudo ./matter_start.sh MT:-IEA1-C714BL2L3OZ00 thread
+
+# Thread commissioning (manual PIN + Discriminator, auto-generated Node ID)
 sudo ./matter_start.sh 12345678 3840 thread
 
-# WiFi commissioning
+# WiFi commissioning (Payload mode)
+sudo ./matter_start.sh MT:-IEA1-C714BL2L3OZ00 wifi --ssid MyHomeWiFi --password MyPassword
+
+# WiFi commissioning (Legacy mode)
 sudo ./matter_start.sh 12345678 3840 wifi --ssid MyHomeWiFi --password MyPassword
 
 # Batch mode — auto-confirm all prompts
@@ -118,9 +130,12 @@ sudo ./matter_start.sh 12345678 3840 thread -y
 
 | Argument | Type | Description |
 |---|---|---|
-| `pin_code` | `uint32` | Matter device PIN code (printed on device or from firmware) |
-| `discriminator` | `uint16` | BLE discovery discriminator, range 0–4095 |
+| `payload` | `string` | **(Recommended)** Matter setup payload, e.g. `MT:-IEA1-C714BL2L3OZ00`. The script auto-calls `chip-tool payload parse-setup-payload` to extract PIN Code and Discriminator |
+| `pin_code` | `uint32` | **(Legacy)** Matter device PIN code (printed on device or from firmware) |
+| `discriminator` | `uint16` | **(Legacy)** BLE discovery discriminator, range 0–4095 |
 | `protocol` | `enum` | Commissioning protocol: `wifi` or `thread` |
+
+> 💡 **Payload mode recommended**: Simply pass the setup payload printed on the device. The script auto-parses PIN and Discriminator — no manual entry, no typos.
 
 ### Optional Arguments
 
@@ -175,19 +190,22 @@ flowchart LR
 ### Thread Commissioning Examples
 
 ```bash
-# Case 1: First run — auto-create network
+# Case 1: First run (Payload) — auto-create network
+sudo ./matter_start.sh MT:-IEA1-C714BL2L3OZ00 thread
+
+# Case 2: First run (Legacy) — auto-create network
 sudo ./matter_start.sh 12345678 3840 thread
 
-# Case 2: Power-cycle recovery — auto-restore from disk
-sudo ./matter_start.sh 87654321 3841 thread
+# Case 3: Power-cycle recovery — auto-restore from disk
+sudo ./matter_start.sh MT:-IEA1-C714BL2L3OZ00 thread
 
-# Case 3: Batch provisioning — skip prompts
+# Case 4: Batch provisioning — skip prompts
 sudo ./matter_start.sh 12345678 3840 thread -y
 
-# Case 4: New topology — force rebuild with specific channel
+# Case 5: New topology — force rebuild with specific channel
 sudo ./matter_start.sh 12345678 3840 thread --force-create-threadnetwork --thread-set-channel 25
 
-# Case 5: Join existing network — with hex dataset
+# Case 6: Join existing network — with hex dataset
 sudo ./matter_start.sh 12345678 3840 thread --use-thread-network "0e080000000000010000..."
 ```
 
@@ -226,8 +244,8 @@ sequenceDiagram
     participant D as 📁 Persistence
     participant M as 🏠 Matter Device
 
-    U->>S: sudo ./matter_start.sh PIN DISC thread
-    S->>S: Parse args, generate Node ID
+    U->>S: sudo ./matter_start.sh MT:-IEA1-C714BL2L3OZ00 thread
+    S->>S: Parse payload → PIN + Discriminator, generate Node ID
     S->>OT: Check cpcd status
     S->>OT: Query / Restore / Create Thread network
     S->>D: Persist dataset to disk
